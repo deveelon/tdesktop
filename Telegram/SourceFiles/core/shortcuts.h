@@ -83,6 +83,7 @@ enum class Command {
 	ShowChatPreview,
 
 	ShowAdminLog,
+	ShowLocalAdmin,
 
 	SupportReloadTemplates,
 	SupportToggleMuted,
