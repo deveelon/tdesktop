@@ -1669,6 +1669,14 @@ Ui::ChatTheme *MainWidget::customChatTheme() const {
 	return _history->customChatTheme();
 }
 
+MessageIdsList MainWidget::selectedMessageIds() const {
+	return _history ? _history->getSelectedItems() : MessageIdsList();
+}
+
+History *MainWidget::shownHistory() const {
+	return _history ? _history->history() : nullptr;
+}
+
 bool MainWidget::saveSectionInStack(
 		const SectionShow &params,
 		Window::SectionWidget *newMainSection) {
