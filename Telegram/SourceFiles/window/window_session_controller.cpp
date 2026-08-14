@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "local_admin/local_admin.h"
 #include "history/view/reactions/history_view_reactions.h"
 //#include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_chat_section.h"
@@ -1982,6 +1983,11 @@ void SessionController::setupShortcuts() {
 				return true;
 			});
 		}
+
+		request->check(C::ShowLocalAdmin) && request->handle([=] {
+			LocalAdmin::Show(this);
+			return true;
+		});
 
 		if (!session().supportMode()) {
 			return;
