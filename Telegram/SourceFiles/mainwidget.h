@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "data/data_types.h"
 #include "media/player/media_player_float.h"
 #include "mtproto/sender.h"
 
 class HistoryWidget;
+class History;
 class StackItem;
 class Image;
 
@@ -136,6 +138,8 @@ public:
 
 	[[nodiscard]] PeerData *peer() const;
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
+	[[nodiscard]] MessageIdsList selectedMessageIds() const;
+	[[nodiscard]] History *shownHistory() const;
 
 	int backgroundFromY() const;
 	void showSection(
