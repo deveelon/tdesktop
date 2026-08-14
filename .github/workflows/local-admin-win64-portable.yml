@@ -1,0 +1,149 @@
+name: Local Admin Windows x64 Portable
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-admin-win64-portable
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Windows x64 Portable
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 360
+
+    env:
+      PREPARE_PATH: Telegram/build/prepare/prepare.py
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LIBRARIES_PATH=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Repository name
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Build metadata
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" "$DOCPATH" | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+          echo "$(sha256sum "$TBUILD/$REPO_NAME/$PREPARE_PATH" | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+      - name: Native Tools Command Prompt
+        uses: Eden-CI/msvc-dev-cmd@master
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: NuGet sources
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys
+            !${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-libs-release-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.os }}-x64-libs-release-
+
+      - name: Qt cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-qt6-release-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.os }}-x64-qt6-release-
+
+      - name: Prepare libraries
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6
+
+      - name: Validate API secrets
+        shell: pwsh
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          if (-not $env:TDESKTOP_API_ID -or -not $env:TDESKTOP_API_HASH) {
+            throw "Add TDESKTOP_API_ID and TDESKTOP_API_HASH repository secrets."
+          }
+
+      - name: Configure and build
+        env:
+          TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
+          TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          call configure.bat x64 qt6 ^
+          -D TDESKTOP_API_ID=%TDESKTOP_API_ID% ^
+          -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+          cmake --build ..\out --config Release --target Telegram --parallel
+
+      - name: Package Portable ZIP
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:TBUILD $env:REPO_NAME
+          $binary = Join-Path $root "out\Release\Telegram.exe"
+          $artifact = Join-Path $env:GITHUB_WORKSPACE "artifact"
+          $portable = Join-Path $artifact "Telegram-LocalAdmin-7.0.9-win64-portable"
+          New-Item -ItemType Directory -Force $portable | Out-Null
+          Copy-Item $binary (Join-Path $portable "Telegram.exe")
+          $data = Join-Path $portable "TelegramForcePortable"
+          New-Item -ItemType Directory -Force $data | Out-Null
+          Set-Content `
+            -Path (Join-Path $data "PORTABLE_DATA_FOLDER.txt") `
+            -Encoding UTF8 `
+            -Value "Telegram stores this portable copy's local data here."
+          $zip = Join-Path $artifact "Telegram-LocalAdmin-7.0.9-win64-portable.zip"
+          Compress-Archive -Path $portable -DestinationPath $zip -CompressionLevel Optimal
+          $size = [math]::Round((Get-Item $zip).Length / 1MB, 2)
+          "Portable ZIP size: $size MB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Upload Portable ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: Telegram-LocalAdmin-7.0.9-win64-portable
+          path: artifact/Telegram-LocalAdmin-7.0.9-win64-portable.zip
+          retention-days: 7
+          if-no-files-found: error
