@@ -1395,6 +1395,8 @@ PRIVATE
     layout/layout_document_generic_preview.h
     layout/layout_item_base.cpp
     layout/layout_item_base.h
+    local_admin/local_admin.cpp
+    local_admin/local_admin.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp
