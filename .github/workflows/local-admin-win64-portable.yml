@@ -2,6 +2,12 @@ name: Local Admin Windows x64 Portable
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - dev
+    paths:
+      - Telegram/SourceFiles/local_admin/local_admin.cpp
+      - .github/workflows/local-admin-win64-portable.yml
 
 permissions:
   contents: read

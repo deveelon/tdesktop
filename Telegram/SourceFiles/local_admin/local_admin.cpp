@@ -238,12 +238,12 @@ public:
 		}
 		auto result = original;
 		for (const auto &rule : _rules) {
-			Replace(result, rule.source, rule.replacement);
+			(void)Replace(result, rule.source, rule.replacement);
 		}
 		if (includeOneTime) {
 			for (const auto &entry : _oneTimeRules) {
 				if (entry.items.contains(key)) {
-					Replace(
+					(void)Replace(
 						result,
 						entry.rule.source,
 						entry.rule.replacement);
