@@ -89,6 +89,36 @@ jobs:
           sdk: ${{ env.SDK }}
           toolset: 14.44
 
+      - name: Free build disk space
+        shell: pwsh
+        run: |
+          $before = (Get-PSDrive -Name C).Free
+          $targets = @(
+            "C:\Android",
+            "C:\Miniconda",
+            "C:\Program Files\MongoDB",
+            "C:\Program Files\MySQL",
+            "C:\Program Files\PostgreSQL",
+            "C:\Program Files\Microsoft SQL Server",
+            "C:\Program Files (x86)\Microsoft SQL Server",
+            "C:\Program Files\dotnet",
+            "C:\hostedtoolcache\windows\Java_Temurin-Hotspot_jdk",
+            "C:\hostedtoolcache\windows\go",
+            "C:\hostedtoolcache\windows\Ruby",
+            "C:\hostedtoolcache\windows\node"
+          )
+          foreach ($target in $targets) {
+            if (Test-Path -LiteralPath $target) {
+              Write-Host "Removing unused runner payload: $target"
+              Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction Continue
+            }
+          }
+          $after = (Get-PSDrive -Name C).Free
+          $reclaimed = [math]::Round(($after - $before) / 1GB, 2)
+          $free = [math]::Round($after / 1GB, 2)
+          "Reclaimed runner disk space: $reclaimed GB; free on C: $free GB" |
+            Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
       - name: NuGet sources
         run: |
           nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
@@ -166,9 +196,11 @@ jobs:
         shell: pwsh
         run: |
           $drive = Get-PSDrive -Name C
-          if ($drive.Free -lt 15GB) {
-            $free = [math]::Round($drive.Free / 1GB, 2)
-            throw "Only $free GB is available; at least 15 GB is required for the Telegram build. Dependency caches were saved."
+          $free = [math]::Round($drive.Free / 1GB, 2)
+          "Free disk space before Telegram build: $free GB" |
+            Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          if ($drive.Free -lt 40GB) {
+            throw "Only $free GB is available; at least 40 GB is required for the Telegram build. Dependency caches were saved."
           }
 
       - name: Validate API secrets
