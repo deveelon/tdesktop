@@ -125,6 +125,7 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       - name: ThirdParty cache
+        id: thirdparty_cache
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
@@ -132,6 +133,7 @@ jobs:
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-third-party-
 
       - name: Libraries cache
+        id: libraries_cache
         uses: actions/cache/restore@v6
         with:
           path: |
@@ -144,6 +146,7 @@ jobs:
           restore-keys: ${{ runner.os }}-x64-libs-release-
 
       - name: Qt cache
+        id: qt_cache
         uses: actions/cache/restore@v6
         with:
           path: |
@@ -153,10 +156,12 @@ jobs:
           restore-keys: ${{ runner.os }}-x64-qt6-release-
 
       - name: Prepare libraries
+        if: steps.thirdparty_cache.outputs.cache-hit != 'true' || steps.libraries_cache.outputs.cache-hit != 'true' || steps.qt_cache.outputs.cache-hit != 'true'
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6 release-only
 
       - name: Remove Qt build tree
+        if: steps.qt_cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           Get-ChildItem -Path $env:LIBRARIES_PATH -Directory -Filter "qt_*" | ForEach-Object {
@@ -168,12 +173,14 @@ jobs:
           "Free disk space after library preparation: $free GB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
 
       - name: Save ThirdParty cache
+        if: steps.thirdparty_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
 
       - name: Save Libraries cache
+        if: steps.libraries_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -185,6 +192,7 @@ jobs:
           key: ${{ runner.os }}-x64-libs-release-${{ env.CACHE_KEY }}
 
       - name: Save Qt cache
+        if: steps.qt_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: |
@@ -199,8 +207,8 @@ jobs:
           $free = [math]::Round($drive.Free / 1GB, 2)
           "Free disk space before Telegram build: $free GB" |
             Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-          if ($drive.Free -lt 40GB) {
-            throw "Only $free GB is available; at least 40 GB is required for the Telegram build. Dependency caches were saved."
+          if ($drive.Free -lt 25GB) {
+            throw "Only $free GB is available; at least 25 GB is required before the Telegram build."
           }
 
       - name: Validate API secrets
@@ -213,7 +221,7 @@ jobs:
             throw "Add TDESKTOP_API_ID and TDESKTOP_API_HASH repository secrets."
           }
 
-      - name: Configure and build
+      - name: Configure
         env:
           TDESKTOP_API_ID: ${{ secrets.TDESKTOP_API_ID }}
           TDESKTOP_API_HASH: ${{ secrets.TDESKTOP_API_HASH }}
@@ -226,6 +234,28 @@ jobs:
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Relocate Telegram intermediates
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:TBUILD $env:REPO_NAME
+          $source = Join-Path $root "out\Telegram\Telegram.dir"
+          $target = Join-Path $env:GITHUB_WORKSPACE "telegram-intermediates"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          if (Test-Path -LiteralPath $source) {
+            Get-ChildItem -LiteralPath $source -Force |
+              Move-Item -Destination $target -Force
+            Remove-Item -LiteralPath $source -Force
+          }
+          New-Item -ItemType Junction -Path $source -Target $target | Out-Null
+          $cFree = [math]::Round((Get-PSDrive -Name C).Free / 1GB, 2)
+          $dFree = [math]::Round((Get-PSDrive -Name D).Free / 1GB, 2)
+          "Before compilation: C has $cFree GB free; D has $dFree GB free. Telegram intermediates are on D." |
+            Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Build
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
           cmake --build ..\out --config Release --target Telegram --parallel
 
       - name: Package Portable ZIP
