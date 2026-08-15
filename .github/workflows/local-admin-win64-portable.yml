@@ -51,6 +51,36 @@ jobs:
           echo "$SDK" >> CACHE_KEY.txt
           echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
 
+      - name: Install ATL for MSVC 14.44
+        shell: pwsh
+        run: |
+          $installerRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\\Installer"
+          $vswhere = Join-Path $installerRoot "vswhere.exe"
+          $setup = Join-Path $installerRoot "setup.exe"
+          $installPath = (& $vswhere -latest -products * -property installationPath).Trim()
+          if (-not $installPath) {
+            throw "Visual Studio installation was not found."
+          }
+          $arguments = @(
+            "modify",
+            "--installPath", "`"$installPath`"",
+            "--add", "Microsoft.VisualStudio.Component.VC.14.44.17.14.ATL",
+            "--quiet",
+            "--norestart",
+            "--nocache"
+          )
+          $process = Start-Process -FilePath $setup -ArgumentList $arguments -Wait -PassThru
+          if ($process.ExitCode -ne 0 -and $process.ExitCode -ne 3010) {
+            throw "Visual Studio Installer failed with exit code $($process.ExitCode)."
+          }
+          $atlbase = Get-ChildItem `
+            -Path (Join-Path $installPath "VC\\Tools\\MSVC\\14.44.*\\atlmfc\\include\\atlbase.h") `
+            -ErrorAction SilentlyContinue
+          if (-not $atlbase) {
+            throw "ATL 14.44 headers were not installed."
+          }
+          Write-Host "ATL headers: $($atlbase.FullName)"
+
       - name: Native Tools Command Prompt
         uses: Eden-CI/msvc-dev-cmd@master
         with:
