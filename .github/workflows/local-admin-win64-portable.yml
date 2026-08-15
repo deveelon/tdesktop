@@ -27,6 +27,7 @@ jobs:
       - name: Prepare directories
         run: |
           mkdir %userprofile%\TBuild\Libraries
+          compact /C /S /I /Q %userprofile%\TBuild
           mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LIBRARIES_PATH=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
@@ -94,14 +95,14 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       - name: ThirdParty cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-third-party-
 
       - name: Libraries cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ env.LIBRARIES_PATH }}\*
@@ -113,7 +114,7 @@ jobs:
           restore-keys: ${{ runner.os }}-x64-libs-release-
 
       - name: Qt cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
@@ -123,7 +124,52 @@ jobs:
 
       - name: Prepare libraries
         run: |
-          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent qt6 release-only
+
+      - name: Remove Qt build tree
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path $env:LIBRARIES_PATH -Directory -Filter "qt_*" | ForEach-Object {
+            Write-Host "Removing Qt build tree: $($_.FullName)"
+            Remove-Item -LiteralPath $_.FullName -Recurse -Force
+          }
+          $drive = Get-PSDrive -Name C
+          $free = [math]::Round($drive.Free / 1GB, 2)
+          "Free disk space after library preparation: $free GB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Save ThirdParty cache
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+
+      - name: Save Libraries cache
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys
+            !${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-libs-release-${{ env.CACHE_KEY }}
+
+      - name: Save Qt cache
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-qt6-release-${{ env.CACHE_KEY }}
+
+      - name: Verify build disk space
+        shell: pwsh
+        run: |
+          $drive = Get-PSDrive -Name C
+          if ($drive.Free -lt 15GB) {
+            $free = [math]::Round($drive.Free / 1GB, 2)
+            throw "Only $free GB is available; at least 15 GB is required for the Telegram build. Dependency caches were saved."
+          }
 
       - name: Validate API secrets
         shell: pwsh

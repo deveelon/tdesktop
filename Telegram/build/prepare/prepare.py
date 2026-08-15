@@ -60,6 +60,7 @@ usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 optionsList = [
     'qt6',
     'skip-release',
+    'release-only',
     'build-stackwalk',
 ]
 options = []
@@ -253,6 +254,8 @@ def filterByPlatform(commands):
                     inscope = False
                 elif len(scopes) == 1:
                     continue
+            if 'releaseonly' in scopes:
+                inscope = 'release-only' in options
             skip = inscope if m.group(1) == '!' else not inscope
         elif not skip and not re.match(r'\s*#', command):
             if m and m.group(2) == 'version':
@@ -1640,6 +1643,8 @@ win:
     SET CONFIGURATIONS=-debug
 release:
     SET CONFIGURATIONS=-debug-and-release
+releaseonly:
+    SET CONFIGURATIONS=-release
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
@@ -1687,10 +1692,14 @@ win:
         -D LCMS2_INCLUDE_DIR="%LCMS2_DIR%\\include" ^
         -D LCMS2_LIBRARIES="%LCMS2_DIR%\\out\\Release\\src\\liblcms2.a"
 
+!releaseonly:
     cmake --build . --config Debug
     cmake --install . --config Debug
     cmake --build .
     cmake --install .
+releaseonly:
+    cmake --build . --config RelWithDebInfo
+    cmake --install . --config RelWithDebInfo
 """)
 
 stage('tg_owt', """
