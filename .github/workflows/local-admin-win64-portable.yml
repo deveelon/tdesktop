@@ -26,9 +26,8 @@ jobs:
     steps:
       - name: Prepare directories
         run: |
-          mkdir %userprofile%\TBuild\Libraries
-          compact /C /S /I /Q %userprofile%\TBuild
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          mkdir %GITHUB_WORKSPACE%\TBuild\Libraries
+          compact /C /S /I /Q %GITHUB_WORKSPACE%\TBuild
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LIBRARIES_PATH=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
@@ -235,28 +234,10 @@ jobs:
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
 
-      - name: Relocate Telegram intermediates
-        shell: pwsh
-        run: |
-          $root = Join-Path $env:TBUILD $env:REPO_NAME
-          $source = Join-Path $root "out\Telegram\Telegram.dir"
-          $target = Join-Path $env:GITHUB_WORKSPACE "telegram-intermediates"
-          New-Item -ItemType Directory -Force -Path $target | Out-Null
-          if (Test-Path -LiteralPath $source) {
-            Get-ChildItem -LiteralPath $source -Force |
-              Move-Item -Destination $target -Force
-            Remove-Item -LiteralPath $source -Force
-          }
-          New-Item -ItemType Junction -Path $source -Target $target | Out-Null
-          $cFree = [math]::Round((Get-PSDrive -Name C).Free / 1GB, 2)
-          $dFree = [math]::Round((Get-PSDrive -Name D).Free / 1GB, 2)
-          "Before compilation: C has $cFree GB free; D has $dFree GB free. Telegram intermediates are on D." |
-            Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
-
       - name: Build
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
-          cmake --build ..\out --config Release --target Telegram --parallel 2 -- /p:CL_MPCount=2 /p:UseMultiToolTask=true /nodeReuse:false
+          cmake --build ..\out --config Release --target Telegram --parallel 3 -- /p:CL_MPCount=3 /p:UseMultiToolTask=true /nodeReuse:false
 
       - name: Package Portable ZIP
         shell: pwsh
