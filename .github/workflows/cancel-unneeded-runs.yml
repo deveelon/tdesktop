@@ -1,0 +1,43 @@
+name: Cancel Unneeded Actions
+
+on:
+  push:
+    branches:
+      - ops/cancel-unneeded-actions
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel:
+    name: Cancel queued and running builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Cancel every run except Local Admin
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "/repos/$REPOSITORY/actions/runs?per_page=100" |
+            jq -r --arg current "$CURRENT_RUN_ID" '
+              .workflow_runs[]
+              | select(
+                  (.status == "queued"
+                    or .status == "in_progress"
+                    or .status == "waiting"
+                    or .status == "requested"
+                    or .status == "pending")
+                  and (.id | tostring) != $current
+                  and .name != "Local Admin Windows x64 Portable"
+                )
+              | .id
+            ' |
+            while read -r run_id; do
+              echo "Cancelling workflow run $run_id"
+              gh api --method POST "/repos/$REPOSITORY/actions/runs/$run_id/cancel" || true
+            done
