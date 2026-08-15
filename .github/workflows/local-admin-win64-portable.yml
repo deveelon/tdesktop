@@ -95,14 +95,14 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
 
       - name: ThirdParty cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.os }}-${{ runner.arch }}-third-party-
 
       - name: Libraries cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ env.LIBRARIES_PATH }}\*
@@ -114,7 +114,7 @@ jobs:
           restore-keys: ${{ runner.os }}-x64-libs-release-
 
       - name: Qt cache
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: |
             ${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
@@ -136,8 +136,39 @@ jobs:
           $drive = Get-PSDrive -Name C
           $free = [math]::Round($drive.Free / 1GB, 2)
           "Free disk space after library preparation: $free GB" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Save ThirdParty cache
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.os }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+
+      - name: Save Libraries cache
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys
+            !${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\*
+            !${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-libs-release-${{ env.CACHE_KEY }}
+
+      - name: Save Qt cache
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LIBRARIES_PATH }}\[qQ]t[_-]*
+            ${{ env.LIBRARIES_PATH }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.os }}-x64-qt6-release-${{ env.CACHE_KEY }}
+
+      - name: Verify build disk space
+        shell: pwsh
+        run: |
+          $drive = Get-PSDrive -Name C
           if ($drive.Free -lt 15GB) {
-            throw "Less than 15 GB is available for the Telegram build."
+            $free = [math]::Round($drive.Free / 1GB, 2)
+            throw "Only $free GB is available; at least 15 GB is required for the Telegram build. Dependency caches were saved."
           }
 
       - name: Validate API secrets
