@@ -256,7 +256,7 @@ jobs:
       - name: Build
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
-          cmake --build ..\out --config Release --target Telegram --parallel
+          cmake --build ..\out --config Release --target Telegram --parallel 2 -- /p:CL_MPCount=2 /p:UseMultiToolTask=true /nodeReuse:false
 
       - name: Package Portable ZIP
         shell: pwsh
