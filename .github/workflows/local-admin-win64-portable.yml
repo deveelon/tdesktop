@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     name: Windows x64 Portable
-    runs-on: windows-2025-vs2026
+    runs-on: windows-latest
     timeout-minutes: 360
 
     env:
