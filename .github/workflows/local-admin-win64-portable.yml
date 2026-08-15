@@ -54,7 +54,7 @@ jobs:
       - name: Install ATL for MSVC 14.44
         shell: pwsh
         run: |
-          $installerRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\\Installer"
+          $installerRoot = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer"
           $vswhere = Join-Path $installerRoot "vswhere.exe"
           $setup = Join-Path $installerRoot "setup.exe"
           $installPath = (& $vswhere -latest -products * -property installationPath).Trim()
@@ -74,7 +74,7 @@ jobs:
             throw "Visual Studio Installer failed with exit code $($process.ExitCode)."
           }
           $atlbase = Get-ChildItem `
-            -Path (Join-Path $installPath "VC\\Tools\\MSVC\\14.44.*\\atlmfc\\include\\atlbase.h") `
+            -Path (Join-Path $installPath "VC\Tools\MSVC\14.44.*\atlmfc\include\atlbase.h") `
             -ErrorAction SilentlyContinue
           if (-not $atlbase) {
             throw "ATL 14.44 headers were not installed."
