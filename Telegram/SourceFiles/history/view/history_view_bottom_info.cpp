@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
+#include "local_admin/local_admin.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -657,7 +658,10 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	const auto item = message->data();
 
 	auto result = BottomInfo::Data();
-	result.date = message->dateTime();
+	result.date = LocalAdmin::ResolveMessageDateTime(
+		&item->history()->session(),
+		item->fullId(),
+		message->dateTime());
 	result.effectId = item->effectId();
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;

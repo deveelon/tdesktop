@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "local_admin/local_admin.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
@@ -2090,7 +2091,11 @@ void Element::validateText() {
 		if (!unavailable.isEmpty()) {
 			setTextWithLinks(tr::italic(unavailable));
 		} else {
-			setTextWithLinks(_textItem->translatedTextWithLocalEntities());
+			const auto text = _textItem->translatedTextWithLocalEntities();
+			setTextWithLinks(LocalAdmin::ResolveMessageText(
+				&item->history()->session(),
+				_textItem->fullId(),
+				text));
 			richPage = _textItem->translatedRichPage();
 		}
 	}
@@ -2445,14 +2450,27 @@ bool Element::countIsTopicRootReply() const {
 
 void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
+	const auto custom = LocalAdmin::ResolveDateDivider(
+		&item->history()->session(),
+		item->fullId());
+	if (!custom.isEmpty()) {
+		displayDate = true;
+	}
 	if (item->hideDisplayDate()) {
 		displayDate = false;
 	}
-	if (displayDate && !Has<DateBadge>()) {
-		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(
-			ItemDateText(item, (_flags & Flag::ScheduledUntilOnline)));
-		setPendingResize();
+	if (displayDate) {
+		const auto text = custom.isEmpty()
+			? ItemDateText(item, (_flags & Flag::ScheduledUntilOnline))
+			: custom;
+		if (!Has<DateBadge>()) {
+			AddComponents(DateBadge::Bit());
+			Get<DateBadge>()->init(text);
+			setPendingResize();
+		} else if (Get<DateBadge>()->text != text) {
+			Get<DateBadge>()->init(text);
+			setPendingResize();
+		}
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
 		setPendingResize();

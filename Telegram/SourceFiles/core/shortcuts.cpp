@@ -140,6 +140,7 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"archive_chat"_q                  , Command::ArchiveChat },
 	{ u"record_round"_q                  , Command::RecordRound },
 	{ u"show_admin_log"_q                , Command::ShowAdminLog },
+	{ u"show_local_admin"_q              , Command::ShowLocalAdmin },
 	//
 };
 
@@ -489,6 +490,7 @@ void Manager::fillDefaults() {
 	set(u"ctrl+f"_q, Command::Search);
 	set(u"search"_q, Command::Search);
 	set(u"find"_q, Command::Search);
+	set(u"ctrl+shift+a"_q, Command::ShowLocalAdmin);
 
 	set(u"ctrl+pgdown"_q, Command::ChatNext);
 	set(u"alt+down"_q, Command::ChatNext);
