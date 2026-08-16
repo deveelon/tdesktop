@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_msg_id.h"
+#include "local_admin/local_admin_ui.h"
 #include "ui/text/text_entity.h"
 
 #include <QtCore/QDateTime>
@@ -38,9 +39,6 @@ struct Rule {
 
 	friend inline bool operator==(const Rule &, const Rule &) = default;
 };
-
-[[nodiscard]] QString ResolveUiText(const QString &original);
-[[nodiscard]] rpl::producer<> Changes();
 
 [[nodiscard]] TextWithEntities ResolveMessageText(
 	not_null<const Main::Session*> session,

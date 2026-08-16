@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/saved/info_saved_music_widget.h"
 #include "info/stories/info_stories_widget.h"
-#include "local_admin/local_admin.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -134,12 +133,11 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
 	using namespace ::Settings;
 	auto forked = std::move(count)
 		| start_spawning(parent->lifetime());
-	auto text = rpl::combine(
-		rpl::duplicate(forked),
-		rpl::single(rpl::empty) | rpl::then(LocalAdmin::Changes())
-	) | rpl::map([textFromCount](int count, const auto &) {
+	auto text = rpl::duplicate(
+		forked
+	) | rpl::map([textFromCount](int count) {
 		return (count > 0)
-			? LocalAdmin::ResolveUiText(textFromCount(count))
+			? textFromCount(count)
 			: QString();
 	});
 	auto button = parent->add(object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(

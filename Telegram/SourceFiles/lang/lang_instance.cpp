@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_tag.h" // kTextCommandLangTag.
+#include "local_admin/local_admin_ui.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
 
@@ -795,7 +796,9 @@ QString Id() {
 }
 
 rpl::producer<> Updated() {
-	return GetInstance().updated();
+	return rpl::merge(
+		GetInstance().updated(),
+		LocalAdmin::Changes());
 }
 
 QString GetNonDefaultValue(const QByteArray &key) {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "lang/lang_tag.h"
+#include "local_admin/local_admin_ui.h"
 
 enum lngtag_count : int;
 
@@ -86,15 +87,18 @@ struct Producer {
 			Value(base),
 			std::move(values)...
 		) | rpl::map([p = std::move(p)](auto tuple) {
-			return ReplaceUnwrapTuple<1>(p(std::get<0>(tuple)), tuple, TagValue<Tags>()...);
+			return LocalAdmin::ResolveUiText(ReplaceUnwrapTuple<1>(
+				p(std::get<0>(tuple)),
+				tuple,
+				TagValue<Tags>()...));
 		});
 	}
 
 	template <typename P, typename ...Values>
 	[[nodiscard]] static S<P> Current(ushort base, P p, const Values &...values) {
-		return ReplaceUnwrap<Tags...>::Call(
+		return LocalAdmin::ResolveUiText(ReplaceUnwrap<Tags...>::Call(
 			p(Lang::details::Current(base)),
-			values...);
+			values...));
 	}
 };
 
@@ -102,12 +106,15 @@ template <>
 struct Producer<> {
 	template <typename P>
 	[[nodiscard]] static rpl::producer<S<P>> Combine(ushort base, P p) {
-		return Value(base) | rpl::map(std::move(p));
+		return Value(base) | rpl::map([p = std::move(p)](QString value) {
+			return LocalAdmin::ResolveUiText(p(std::move(value)));
+		});
 	}
 
 	template <typename P>
 	[[nodiscard]] static S<P> Current(ushort base, P p) {
-		return p(Lang::details::Current(base));
+		return LocalAdmin::ResolveUiText(
+			p(Lang::details::Current(base)));
 	}
 };
 
@@ -142,14 +149,14 @@ struct Producer<lngtag_count, Tags...> {
 				}
 				Unexpected("Lang shift value in Plural result.");
 			};
-			return ReplaceUnwrapTuple<7>(
+			return LocalAdmin::ResolveUiText(ReplaceUnwrapTuple<7>(
 				ReplaceTag<S<P>>::Call(
 					p(select()),
 					TagValue<lngtag_count>(),
 					StartReplacements<S<P>>::Call(
 						std::move(plural.replacement))),
 				tuple,
-				TagValue<Tags>()...);
+				TagValue<Tags>()...));
 		});
 	}
 
@@ -161,13 +168,13 @@ struct Producer<lngtag_count, Tags...> {
 			float64 count,
 			const Values &...values) {
 		auto plural = Plural(base, count, type);
-		return ReplaceUnwrap<Tags...>::Call(
+		return LocalAdmin::ResolveUiText(ReplaceUnwrap<Tags...>::Call(
 			ReplaceTag<S<P>>::Call(
 				p(Lang::details::Current(base + plural.keyShift)),
 				TagValue<lngtag_count>(),
 				StartReplacements<S<P>>::Call(
 					std::move(plural.replacement))),
-			values...);
+			values...));
 	}
 };
 

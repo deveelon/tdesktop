@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "ui/effects/numbers_animation.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QDir>
@@ -157,15 +158,41 @@ public:
 		return _rules;
 	}
 
-	[[nodiscard]] QString resolveUiText(const QString &original) const {
+	[[nodiscard]] TextWithEntities resolveUiText(
+			TextWithEntities original) const {
 		if (!_enabled) {
 			return original;
 		}
-		auto result = TextWithEntities::Simple(original);
 		for (const auto &rule : _rules) {
-			(void)Replace(result, rule.source, rule.replacement);
+			(void)Replace(original, rule.source, rule.replacement);
 		}
-		return std::move(result.text);
+		return original;
+	}
+
+	[[nodiscard]] Ui::StringWithNumbers resolveUiText(
+			Ui::StringWithNumbers original) const {
+		if (original.offset < 0) {
+			original.text = resolveUiText(
+				TextWithEntities::Simple(original.text)).text;
+			return original;
+		}
+		auto marked = TextWithEntities{
+			.text = std::move(original.text),
+			.entities = { EntityInText(
+				EntityType::Invalid,
+				original.offset,
+				original.length) },
+		};
+		auto resolved = resolveUiText(std::move(marked));
+		original.text = std::move(resolved.text);
+		if (resolved.entities.empty()) {
+			original.offset = -1;
+			original.length = 0;
+		} else {
+			original.offset = resolved.entities.front().offset();
+			original.length = resolved.entities.front().length();
+		}
+		return original;
 	}
 
 	[[nodiscard]] rpl::producer<> changes() const {
@@ -669,8 +696,17 @@ QPointer<Panel> PanelInstance;
 
 } // namespace
 
-QString ResolveUiText(const QString &original) {
-	return Manager::Instance().resolveUiText(original);
+QString ResolveUiText(QString original) {
+	return Manager::Instance().resolveUiText(
+		TextWithEntities::Simple(original)).text;
+}
+
+TextWithEntities ResolveUiText(TextWithEntities original) {
+	return Manager::Instance().resolveUiText(std::move(original));
+}
+
+Ui::StringWithNumbers ResolveUiText(Ui::StringWithNumbers original) {
+	return Manager::Instance().resolveUiText(std::move(original));
 }
 
 rpl::producer<> Changes() {

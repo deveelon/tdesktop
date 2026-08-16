@@ -6,10 +6,10 @@ on:
     branches:
       - dev
     paths:
-      - Telegram/SourceFiles/local_admin/local_admin.h
-      - Telegram/SourceFiles/local_admin/local_admin.cpp
-      - Telegram/SourceFiles/info/media/info_media_buttons.cpp
-      - Telegram/SourceFiles/info/profile/tabs/adapters/info_profile_tab_stories.cpp
+      - Telegram/CMakeLists.txt
+      - Telegram/SourceFiles/lang/lang_instance.cpp
+      - Telegram/SourceFiles/lang/lang_values.h
+      - Telegram/SourceFiles/local_admin/**
       - .github/workflows/local-admin-win64-portable.yml
 
 permissions:
@@ -242,6 +242,11 @@ jobs:
           -D CMAKE_COMPILE_WARNING_AS_ERROR=ON ^
           -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+      - name: Preflight localization layer
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          cmake --build ..\out --config Release --target td_lang --parallel 3 -- /p:CL_MPCount=3 /p:UseMultiToolTask=true /nodeReuse:false
 
       - name: Build
         run: |

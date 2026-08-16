@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "info/stories/info_stories_common.h"
 #include "lang/lang_keys.h"
-#include "local_admin/local_admin.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "styles/style_info.h"
@@ -105,19 +104,17 @@ public:
 			) | rpl::map([](const QString &text) {
 				return TextWithEntities{ text };
 			}),
-			.subtitle = rpl::combine(
-				StoriesCountValue(_peer),
-				rpl::single(rpl::empty) | rpl::then(LocalAdmin::Changes())
-			) | rpl::map([channel](int count, const auto &) {
-				const auto text = (count > 0)
+			.subtitle = StoriesCountValue(
+				_peer
+			) | rpl::map([channel](int count) {
+				return TextWithEntities{ (count > 0)
 					? (channel
 						? tr::lng_profile_posts(tr::now, lt_count, count)
 						: tr::lng_profile_saved_stories(
 							tr::now,
 							lt_count,
 							count))
-					: QString();
-				return TextWithEntities{ LocalAdmin::ResolveUiText(text) };
+					: QString() };
 			}),
 			.selectedItems = _list->selectedListValue(),
 			.selectionAction = crl::guard(
