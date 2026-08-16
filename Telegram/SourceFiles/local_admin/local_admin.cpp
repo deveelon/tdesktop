@@ -150,10 +150,26 @@ public:
 		}
 		_enabled = enabled;
 		save();
+		_changes.fire({});
 	}
 
 	[[nodiscard]] const std::vector<Rule> &rules() const {
 		return _rules;
+	}
+
+	[[nodiscard]] QString resolveUiText(const QString &original) const {
+		if (!_enabled) {
+			return original;
+		}
+		auto result = TextWithEntities::Simple(original);
+		for (const auto &rule : _rules) {
+			(void)Replace(result, rule.source, rule.replacement);
+		}
+		return std::move(result.text);
+	}
+
+	[[nodiscard]] rpl::producer<> changes() const {
+		return _changes.events();
 	}
 
 	void addPersistent(Rule rule) {
@@ -171,6 +187,7 @@ public:
 			_rules.erase(begin(_rules), end(_rules) - kRulesLimit);
 		}
 		save();
+		_changes.fire({});
 	}
 
 	bool removePersistent(const QString &id) {
@@ -180,6 +197,7 @@ public:
 		}
 		_rules.erase(i);
 		save();
+		_changes.fire({});
 		return true;
 	}
 
@@ -337,6 +355,7 @@ private:
 	}
 
 	bool _enabled = true;
+	rpl::event_stream<> _changes;
 	std::vector<Rule> _rules;
 	std::vector<OneTimeRule> _oneTimeRules;
 	std::map<ItemKey, TextWithEntities> _messageText;
@@ -649,6 +668,14 @@ private:
 QPointer<Panel> PanelInstance;
 
 } // namespace
+
+QString ResolveUiText(const QString &original) {
+	return Manager::Instance().resolveUiText(original);
+}
+
+rpl::producer<> Changes() {
+	return Manager::Instance().changes();
+}
 
 TextWithEntities ResolveMessageText(
 		not_null<const Main::Session*> session,

@@ -39,6 +39,9 @@ struct Rule {
 	friend inline bool operator==(const Rule &, const Rule &) = default;
 };
 
+[[nodiscard]] QString ResolveUiText(const QString &original);
+[[nodiscard]] rpl::producer<> Changes();
+
 [[nodiscard]] TextWithEntities ResolveMessageText(
 	not_null<const Main::Session*> session,
 	FullMsgId id,
