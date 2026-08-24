@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_stats.h"
-#include "local_admin/local_admin.h"
+#include "local_admin/local_admin_export.h"
 #include "mtproto/mtp_instance.h"
 
 #include <QtCore/QDateTime>
@@ -46,7 +46,10 @@ void ApplyLocalAdminOverrides(
 		Data::MessagesSlice &slice,
 		const LocalAdmin::ExportSnapshot &overrides) {
 	for (auto &message : slice.list) {
-		const auto id = FullMsgId(message.peerId, MsgId(message.originalId));
+		const auto id = LocalAdmin::ExportMessageId{
+			.peer = message.peerId,
+			.message = message.originalId,
+		};
 		const auto exact = overrides.messageText.find(id);
 		const auto service = !v::is<v::null_t>(message.action.content);
 		if (exact != end(overrides.messageText)) {

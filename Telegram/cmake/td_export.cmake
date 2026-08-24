@@ -33,6 +33,7 @@ PRIVATE
     export/output/export_output_result.h
     export/output/export_output_stats.cpp
     export/output/export_output_stats.h
+    local_admin/local_admin_export.h
 )
 
 target_include_directories(td_export

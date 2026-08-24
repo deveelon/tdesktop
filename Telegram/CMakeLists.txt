@@ -1397,6 +1397,7 @@ PRIVATE
     layout/layout_item_base.h
     local_admin/local_admin.cpp
     local_admin/local_admin.h
+    local_admin/local_admin_export.h
     local_admin/local_admin_ui.h
     main/main_account.cpp
     main/main_account.h

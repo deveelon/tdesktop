@@ -330,7 +330,10 @@ public:
 			auto exported = ExportSnapshot::OneTimeRule{ .rule = entry.rule };
 			for (const auto &item : entry.items) {
 				if (item.account == account) {
-					exported.messages.emplace(item.message);
+					exported.messages.emplace(ExportMessageId{
+						.peer = item.message.peer,
+						.message = item.message.msg.bare,
+					});
 				}
 			}
 			if (!exported.messages.empty()) {
@@ -339,17 +342,26 @@ public:
 		}
 		for (const auto &[key, value] : _messageText) {
 			if (key.account == account) {
-				result.messageText.emplace(key.message, value.text);
+				result.messageText.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value.text);
 			}
 		}
 		for (const auto &[key, value] : _messageTime) {
 			if (key.account == account) {
-				result.messageTime.emplace(key.message, value);
+				result.messageTime.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value);
 			}
 		}
 		for (const auto &[key, value] : _dateDividers) {
 			if (key.account == account) {
-				result.dateDividers.emplace(key.message, value);
+				result.dateDividers.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value);
 			}
 		}
 		return result;
