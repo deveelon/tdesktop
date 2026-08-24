@@ -3491,7 +3491,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	const auto isChannel = (dialog.type == DialogType::PrivateChannel)
 		|| (dialog.type == DialogType::PublicChannel);
 	const auto serviceFrom = peers.wrapPeerName(message.fromId);
-	const auto serviceText = !message.localAdminServiceText.empty()
+	const auto serviceText = !message.localAdminServiceText.isEmpty()
 		? SerializeString(message.localAdminServiceText)
 		: v::match(message.action.content, [&](
 			const ActionChatCreate &data) {
@@ -5961,13 +5961,13 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 			_chatFileEmpty = false;
 		}
 		const auto date = message.date;
-		if (!message.localAdminDateDivider.empty()
+		if (!message.localAdminDateDivider.isEmpty()
 			|| DisplayDate(date, previous ? previous->date : 0)) {
 			block.append(_chat->pushServiceMessage(
 				--_dateMessageId,
 				_dialog,
 				_settings.path,
-				message.localAdminDateDivider.empty()
+				message.localAdminDateDivider.isEmpty()
 					? FormatDateText(date)
 					: SerializeString(message.localAdminDateDivider)));
 		}
