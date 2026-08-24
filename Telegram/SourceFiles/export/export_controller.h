@@ -13,9 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QPointer>
 #include <crl/crl_object_on_queue.h>
 
+#include <memory>
+
 namespace MTP {
 class Instance;
 } // namespace MTP
+
+namespace LocalAdmin {
+struct ExportSnapshot;
+} // namespace LocalAdmin
 
 namespace Export {
 
@@ -116,7 +122,8 @@ class Controller {
 public:
 	Controller(
 		QPointer<MTP::Instance> mtproto,
-		const MTPInputPeer &peer);
+		const MTPInputPeer &peer,
+		std::shared_ptr<const LocalAdmin::ExportSnapshot> overrides = nullptr);
 	Controller(
 		QPointer<MTP::Instance> mtproto,
 		const MTPInputPeer &peer,

@@ -140,6 +140,7 @@ public:
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 	[[nodiscard]] MessageIdsList selectedMessageIds() const;
 	[[nodiscard]] History *shownHistory() const;
+	void clearSelectedMessages();
 
 	int backgroundFromY() const;
 	void showSection(

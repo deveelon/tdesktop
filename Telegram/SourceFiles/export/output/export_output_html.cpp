@@ -3491,7 +3491,9 @@ auto HtmlWriter::Wrap::pushMessage(
 	const auto isChannel = (dialog.type == DialogType::PrivateChannel)
 		|| (dialog.type == DialogType::PublicChannel);
 	const auto serviceFrom = peers.wrapPeerName(message.fromId);
-	const auto serviceText = v::match(message.action.content, [&](
+	const auto serviceText = !message.localAdminServiceText.empty()
+		? SerializeString(message.localAdminServiceText)
+		: v::match(message.action.content, [&](
 			const ActionChatCreate &data) {
 		return serviceFrom
 			+ " created group &laquo;"
@@ -5959,12 +5961,15 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 			_chatFileEmpty = false;
 		}
 		const auto date = message.date;
-		if (DisplayDate(date, previous ? previous->date : 0)) {
+		if (!message.localAdminDateDivider.empty()
+			|| DisplayDate(date, previous ? previous->date : 0)) {
 			block.append(_chat->pushServiceMessage(
 				--_dateMessageId,
 				_dialog,
 				_settings.path,
-				FormatDateText(date)));
+				message.localAdminDateDivider.empty()
+					? FormatDateText(date)
+					: SerializeString(message.localAdminDateDivider)));
 		}
 		const auto &[info, content] = _chat->pushMessage(
 			message,

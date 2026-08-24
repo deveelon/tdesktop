@@ -1677,6 +1677,12 @@ History *MainWidget::shownHistory() const {
 	return _history ? _history->history() : nullptr;
 }
 
+void MainWidget::clearSelectedMessages() {
+	if (_history) {
+		_history->clearSelected();
+	}
+}
+
 bool MainWidget::saveSectionInStack(
 		const SectionShow &params,
 		Window::SectionWidget *newMainSection) {

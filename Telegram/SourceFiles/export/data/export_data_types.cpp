@@ -2637,7 +2637,7 @@ Message ParseMessage(
 		const QString &mediaFolder) {
 	auto result = Message();
 	data.match([&](const auto &data) {
-		result.id = data.vid().v;
+		result.id = result.originalId = data.vid().v;
 		if constexpr (!MTPDmessageEmpty::Is<decltype(data)>()) {
 			result.date = data.vdate().v;
 			result.out = data.is_out();

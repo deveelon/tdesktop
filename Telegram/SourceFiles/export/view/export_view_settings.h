@@ -33,7 +33,8 @@ public:
 	SettingsWidget(
 		QWidget *parent,
 		not_null<Main::Session*> session,
-		Settings data);
+		Settings data,
+		bool localAdminExport = false);
 
 	[[nodiscard]] int sizeLimitExtraHeight() const;
 
@@ -111,6 +112,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	PeerId _singlePeerId = 0;
+	bool _localAdminExport = false;
 	Fn<void(object_ptr<Ui::BoxContent>)> _showBoxCallback;
 
 	// Use through readData / changeData wrappers.

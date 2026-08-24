@@ -31,6 +31,7 @@ public:
 	~Manager();
 
 	void start(not_null<PeerData*> peer);
+	void startLocalAdmin(not_null<PeerData*> peer);
 	void start(
 		not_null<Main::Session*> session,
 		const MTPInputPeer &singlePeer = MTP_inputPeerEmpty());
@@ -46,7 +47,9 @@ public:
 	void stop();
 
 private:
-	void setupPanel(not_null<Main::Session*> session);
+	void setupPanel(
+		not_null<Main::Session*> session,
+		bool localAdminExport = false);
 
 	std::unique_ptr<Controller> _controller;
 	std::unique_ptr<View::PanelController> _panel;

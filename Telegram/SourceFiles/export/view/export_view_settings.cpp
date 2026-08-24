@@ -124,10 +124,12 @@ int64 SizeLimitByIndex(int index) {
 SettingsWidget::SettingsWidget(
 	QWidget *parent,
 	not_null<Main::Session*> session,
-	Settings data)
+	Settings data,
+	bool localAdminExport)
 : RpWidget(parent)
 , _session(session)
 , _singlePeerId(ReadPeerId(session, data.singlePeer))
+, _localAdminExport(localAdminExport)
 , _internal_data(std::move(data)) {
 	ResolveSettings(session, _internal_data);
 	setupContent();
@@ -368,17 +370,22 @@ void SettingsWidget::addFormatAndLocationLabel(
 			QDir::toNativeSeparators(text),
 			u"internal:edit_export_path"_q);
 	});
-	auto formatLink = value() | rpl::map([](const Settings &data) {
-		return data.format;
-	}) | rpl::distinct_until_changed(
-	) | rpl::map([](Format format) {
-		const auto text = (format == Format::Html)
-			? "HTML"
-			: (format == Format::Json)
-			? "JSON"
-			: tr::lng_export_option_html_and_json(tr::now);
-		return tr::link(text, u"internal:edit_format"_q);
-	});
+	auto formatLink = [=]() -> rpl::producer<TextWithEntities> {
+		if (_localAdminExport) {
+			return rpl::single(tr::bold(u"HTML"_q));
+		}
+		return value() | rpl::map([](const Settings &data) {
+			return data.format;
+		}) | rpl::distinct_until_changed(
+		) | rpl::map([](Format format) {
+			const auto text = (format == Format::Html)
+				? "HTML"
+				: (format == Format::Json)
+				? "JSON"
+				: tr::lng_export_option_html_and_json(tr::now);
+			return tr::link(text, u"internal:edit_format"_q);
+		}) | rpl::type_erased;
+	}();
 	const auto label = container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
@@ -393,7 +400,8 @@ void SettingsWidget::addFormatAndLocationLabel(
 	label->overrideLinkClickHandler([=](const QString &url) {
 		if (url == u"internal:edit_export_path"_q) {
 			chooseFolder();
-		} else if (url == u"internal:edit_format"_q) {
+		} else if (url == u"internal:edit_format"_q
+			&& !_localAdminExport) {
 			chooseFormat();
 		} else {
 			Unexpected("Click handler URL in export limits edit.");

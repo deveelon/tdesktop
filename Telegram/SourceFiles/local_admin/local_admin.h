@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QDateTime>
 
+#include <map>
+#include <set>
+#include <vector>
+
 class History;
 class HistoryItem;
 
@@ -40,6 +44,19 @@ struct Rule {
 	friend inline bool operator==(const Rule &, const Rule &) = default;
 };
 
+struct ExportSnapshot {
+	struct OneTimeRule {
+		Rule rule;
+		std::set<FullMsgId> messages;
+	};
+
+	std::vector<Rule> rules;
+	std::vector<OneTimeRule> oneTimeRules;
+	std::map<FullMsgId, QString> messageText;
+	std::map<FullMsgId, QTime> messageTime;
+	std::map<FullMsgId, QString> dateDividers;
+};
+
 [[nodiscard]] TextWithEntities ResolveMessageText(
 	not_null<const Main::Session*> session,
 	FullMsgId id,
@@ -51,6 +68,9 @@ struct Rule {
 [[nodiscard]] QString ResolveDateDivider(
 	not_null<const Main::Session*> session,
 	FullMsgId id);
+[[nodiscard]] bool ServiceMessageSelectionEnabled();
+[[nodiscard]] ExportSnapshot CreateExportSnapshot(
+	not_null<const Main::Session*> session);
 
 void Show(not_null<Window::SessionController*> controller);
 
