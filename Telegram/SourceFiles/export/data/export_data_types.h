@@ -1176,6 +1176,7 @@ struct HistoryMessageMarkupButton {
 
 struct Message {
 	int32 id = 0;
+	int32 originalId = 0;
 	TimeId date = 0;
 	TimeId edited = 0;
 	PeerId fromId = 0;
@@ -1192,6 +1193,8 @@ struct Message {
 	int32 replyToMsgId = 0;
 	PeerId replyToPeerId = 0;
 	std::vector<TextPart> text;
+	Utf8String localAdminServiceText;
+	Utf8String localAdminDateDivider;
 	std::vector<Reaction> reactions;
 	Media media;
 	ServiceAction action;

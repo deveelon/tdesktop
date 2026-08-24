@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "config.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "data/data_session.h"
+#include "export/export_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
@@ -319,6 +321,52 @@ public:
 		return (i == end(_dateDividers)) ? QString() : i->second;
 	}
 
+	[[nodiscard]] ExportSnapshot createExportSnapshot(
+			not_null<const Main::Session*> session) const {
+		auto result = ExportSnapshot();
+		const auto account = session->uniqueId();
+		result.rules = _rules;
+		for (const auto &entry : _oneTimeRules) {
+			auto exported = ExportSnapshot::OneTimeRule{ .rule = entry.rule };
+			for (const auto &item : entry.items) {
+				if (item.account == account) {
+					exported.messages.emplace(ExportMessageId{
+						.peer = item.message.peer,
+						.message = item.message.msg.bare,
+					});
+				}
+			}
+			if (!exported.messages.empty()) {
+				result.oneTimeRules.push_back(std::move(exported));
+			}
+		}
+		for (const auto &[key, value] : _messageText) {
+			if (key.account == account) {
+				result.messageText.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value.text);
+			}
+		}
+		for (const auto &[key, value] : _messageTime) {
+			if (key.account == account) {
+				result.messageTime.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value);
+			}
+		}
+		for (const auto &[key, value] : _dateDividers) {
+			if (key.account == account) {
+				result.dateDividers.emplace(ExportMessageId{
+					.peer = key.message.peer,
+					.message = key.message.msg.bare,
+				}, value);
+			}
+		}
+		return result;
+	}
+
 private:
 	Manager() {
 		load();
@@ -421,6 +469,11 @@ public:
 		build();
 		refreshRules();
 	}
+	~Panel() {
+		if (const auto main = mainWidget()) {
+			main->clearSelectedMessages();
+		}
+	}
 
 	[[nodiscard]] Window::SessionController *controller() const {
 		return _controller.get();
@@ -463,6 +516,7 @@ private:
 		buildMode(layout, body);
 		buildMessage(layout, body);
 		buildDate(layout, body);
+		buildExport(layout, body);
 		buildRule(layout, body, RuleKind::Number);
 		buildRule(layout, body, RuleKind::Text);
 		buildRules(layout, body);
@@ -516,12 +570,14 @@ private:
 				return;
 			}
 			const auto item = _controller->session().data().message(ids.front());
-			if (!item || item->isService()) {
+			if (!item) {
 				status(u"Выбранное сообщение нельзя загрузить."_q, true);
 				return;
 			}
 			_loadedMessage = ids.front();
-			const auto source = item->translatedTextWithLocalEntities();
+			const auto source = item->isService()
+				? item->notificationText()
+				: item->translatedTextWithLocalEntities();
 			_messageText->setPlainText(ResolveMessageText(
 				&_controller->session(),
 				item->fullId(),
@@ -585,6 +641,36 @@ private:
 				RefreshItems({ item });
 			}
 			status(u"Дата применена к выбранной пачке сообщений."_q);
+		});
+		layout->addWidget(group);
+	}
+
+	void buildExport(not_null<QVBoxLayout*> layout, QWidget *parent) {
+		auto group = new QGroupBox(u"Экспорт переписки"_q, parent);
+		auto column = new QVBoxLayout(group);
+		auto description = new QLabel(
+			u"Штатный HTML-экспорт текущего чата с локально изменёнными текстом, временем и разделителями дат."_q,
+			group);
+		description->setWordWrap(true);
+		auto start = new QPushButton(
+			u"HTML-экспорт с локальными изменениями"_q,
+			group);
+		column->addWidget(description);
+		column->addWidget(start);
+		connect(start, &QPushButton::clicked, this, [=] {
+			const auto main = mainWidget();
+			const auto peer = main ? main->peer() : nullptr;
+			if (!peer) {
+				status(u"Сначала откройте чат для экспорта."_q, true);
+				return;
+			}
+			const auto manager = &Core::App().exportManager();
+			if (manager->inProgress()) {
+				status(u"Сначала завершите уже открытый экспорт."_q, true);
+				return;
+			}
+			manager->startLocalAdmin(peer);
+			status(u"Открыты штатные настройки HTML-экспорта."_q);
 		});
 		layout->addWidget(group);
 	}
@@ -736,6 +822,15 @@ QString ResolveDateDivider(
 		FullMsgId id) {
 	return Manager::Instance().resolveDateDivider(
 		ItemKey{ session->uniqueId(), id });
+}
+
+bool ServiceMessageSelectionEnabled() {
+	return PanelInstance != nullptr;
+}
+
+ExportSnapshot CreateExportSnapshot(
+		not_null<const Main::Session*> session) {
+	return Manager::Instance().createExportSnapshot(session);
 }
 
 void Show(not_null<Window::SessionController*> controller) {

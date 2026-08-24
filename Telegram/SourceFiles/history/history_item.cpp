@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
 #include "history/history.h"
+#include "local_admin/local_admin.h"
 #include "iv/iv_data.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/editor/iv_editor_state.h"
@@ -4119,6 +4120,11 @@ bool HistoryItem::needCheck() const {
 
 bool HistoryItem::isService() const {
 	return Has<HistoryServiceData>();
+}
+
+bool HistoryItem::canBeSelected() const {
+	return ((isRegular() || isEphemeral()) && !isService())
+		|| (isService() && LocalAdmin::ServiceMessageSelectionEnabled());
 }
 
 bool HistoryItem::unread(not_null<Data::Thread*> thread) const {

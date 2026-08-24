@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_msg_id.h"
+#include "local_admin/local_admin_export.h"
 #include "local_admin/local_admin_ui.h"
 #include "ui/text/text_entity.h"
 
@@ -26,20 +27,6 @@ class SessionController;
 
 namespace LocalAdmin {
 
-enum class RuleKind {
-	Number,
-	Text,
-};
-
-struct Rule {
-	QString id;
-	RuleKind kind = RuleKind::Text;
-	QString source;
-	QString replacement;
-
-	friend inline bool operator==(const Rule &, const Rule &) = default;
-};
-
 [[nodiscard]] TextWithEntities ResolveMessageText(
 	not_null<const Main::Session*> session,
 	FullMsgId id,
@@ -51,6 +38,9 @@ struct Rule {
 [[nodiscard]] QString ResolveDateDivider(
 	not_null<const Main::Session*> session,
 	FullMsgId id);
+[[nodiscard]] bool ServiceMessageSelectionEnabled();
+[[nodiscard]] ExportSnapshot CreateExportSnapshot(
+	not_null<const Main::Session*> session);
 
 void Show(not_null<Window::SessionController*> controller);
 

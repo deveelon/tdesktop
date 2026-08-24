@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "local_admin/local_admin.h"
 #include "ui/layers/box_content.h"
 #include "base/unixtime.h"
 
@@ -23,6 +24,20 @@ Manager::~Manager() = default;
 
 void Manager::start(not_null<PeerData*> peer) {
 	start(&peer->session(), peer->input());
+}
+
+void Manager::startLocalAdmin(not_null<PeerData*> peer) {
+	if (_panel) {
+		_panel->activatePanel();
+		return;
+	}
+	auto overrides = std::make_shared<const LocalAdmin::ExportSnapshot>(
+		LocalAdmin::CreateExportSnapshot(&peer->session()));
+	_controller = std::make_unique<Controller>(
+		&peer->session().mtp(),
+		peer->input(),
+		std::move(overrides));
+	setupPanel(&peer->session(), true);
 }
 
 void Manager::startTopic(
@@ -55,10 +70,13 @@ void Manager::start(
 	setupPanel(session);
 }
 
-void Manager::setupPanel(not_null<Main::Session*> session) {
+void Manager::setupPanel(
+		not_null<Main::Session*> session,
+		bool localAdminExport) {
 	_panel = std::make_unique<View::PanelController>(
 		session,
-		_controller.get());
+		_controller.get(),
+		localAdminExport);
 	session->account().sessionChanges(
 	) | rpl::filter([=](Main::Session *value) {
 		return (value != session);

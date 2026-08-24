@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_settings.h"
 #include "export/view/export_view_progress.h"
 #include "export/export_manager.h"
+#include "export/output/export_output_abstract.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/padding_wrap.h"
@@ -137,12 +138,18 @@ void ResolveSettings(not_null<Main::Session*> session, Settings &settings) {
 
 PanelController::PanelController(
 	not_null<Main::Session*> session,
-	not_null<Controller*> process)
+	not_null<Controller*> process,
+	bool localAdminExport)
 : _session(session)
 , _process(process)
 , _settings(
 	std::make_unique<Settings>(_session->local().readExportSettings()))
-, _saveSettingsTimer([=] { saveSettings(); }) {
+, _saveSettingsTimer([=] { saveSettings(); })
+, _localAdminExport(localAdminExport)
+, _savedFormat(_settings->format) {
+	if (_localAdminExport) {
+		_settings->format = Output::Format::Html;
+	}
 	ResolveSettings(session, *_settings);
 
 	_process->state(
@@ -191,7 +198,8 @@ void PanelController::showSettings() {
 	auto settings = base::make_unique_q<SettingsWidget>(
 		_panel,
 		_session,
-		*_settings);
+		*_settings,
+		_localAdminExport);
 	settings->setShowBoxCallback([=](object_ptr<Ui::BoxContent> box) {
 		_panel->showBox(
 			std::move(box),
@@ -425,6 +433,9 @@ void PanelController::saveSettings() const {
 		return Platform::IsWindows() ? result.toLower() : result;
 	};
 	auto settings = *_settings;
+	if (_localAdminExport) {
+		settings.format = _savedFormat;
+	}
 	if (check(settings.path) == check(File::DefaultDownloadPath(_session))) {
 		settings.path = QString();
 	}

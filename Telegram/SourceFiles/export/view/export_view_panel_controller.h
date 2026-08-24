@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "export/export_controller.h"
+#include "export/output/export_output_abstract.h"
 #include "export/view/export_view_content.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
@@ -35,7 +36,8 @@ class PanelController {
 public:
 	PanelController(
 		not_null<Main::Session*> session,
-		not_null<Controller*> process);
+		not_null<Controller*> process,
+		bool localAdminExport = false);
 	~PanelController();
 
 	[[nodiscard]] Main::Session &session() const {
@@ -75,6 +77,8 @@ private:
 	const not_null<Controller*> _process;
 	std::unique_ptr<Settings> _settings;
 	base::Timer _saveSettingsTimer;
+	bool _localAdminExport = false;
+	Output::Format _savedFormat = Output::Format::Html;
 
 	base::unique_qptr<Ui::SeparatePanel> _panel;
 

@@ -2066,7 +2066,11 @@ void Element::validateText() {
 		const auto &customLinks = contextDependentText.text.empty()
 			? _textItem->customTextLinks()
 			: contextDependentText.links;
-		setTextWithLinks(markedText, customLinks);
+		setTextWithLinks(LocalAdmin::ResolveMessageText(
+			&item->history()->session(),
+			_textItem->fullId(),
+			markedText),
+			customLinks);
 
 		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
 			if (!done->completed.empty() && !done->incompleted.empty()) {

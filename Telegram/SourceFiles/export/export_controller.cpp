@@ -13,7 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_stats.h"
+#include "local_admin/local_admin_export.h"
 #include "mtproto/mtp_instance.h"
+
+#include <QtCore/QDateTime>
 
 namespace Export {
 namespace {
@@ -29,6 +32,59 @@ Settings NormalizeSettings(const Settings &settings) {
 	return result;
 }
 
+void ApplyRule(std::vector<Data::TextPart> &text, const LocalAdmin::Rule &rule) {
+	for (auto &part : text) {
+		auto value = QString::fromUtf8(part.text);
+		if (value.contains(rule.source, Qt::CaseSensitive)) {
+			value.replace(rule.source, rule.replacement, Qt::CaseSensitive);
+			part.text = value.toUtf8();
+		}
+	}
+}
+
+void ApplyLocalAdminOverrides(
+		Data::MessagesSlice &slice,
+		const LocalAdmin::ExportSnapshot &overrides) {
+	for (auto &message : slice.list) {
+		const auto id = LocalAdmin::ExportMessageId{
+			.peer = message.peerId,
+			.message = message.originalId,
+		};
+		const auto exact = overrides.messageText.find(id);
+		const auto service = !v::is<v::null_t>(message.action.content);
+		if (exact != end(overrides.messageText)) {
+			if (service) {
+				message.localAdminServiceText = exact->second.toUtf8();
+			} else {
+				message.text = { Data::TextPart{
+					.type = Data::TextPart::Type::Text,
+					.text = exact->second.toUtf8(),
+				} };
+				message.richMessage.reset();
+			}
+		} else if (!service) {
+			for (const auto &rule : overrides.rules) {
+				ApplyRule(message.text, rule);
+			}
+			for (const auto &entry : overrides.oneTimeRules) {
+				if (entry.messages.contains(id)) {
+					ApplyRule(message.text, entry.rule);
+				}
+			}
+		}
+		const auto time = overrides.messageTime.find(id);
+		if (time != end(overrides.messageTime)) {
+			auto date = QDateTime::fromSecsSinceEpoch(message.date);
+			date.setTime(time->second);
+			message.date = TimeId(date.toSecsSinceEpoch());
+		}
+		const auto divider = overrides.dateDividers.find(id);
+		if (divider != end(overrides.dateDividers)) {
+			message.localAdminDateDivider = divider->second.toUtf8();
+		}
+	}
+}
+
 } // namespace
 
 class ControllerObject {
@@ -36,7 +92,8 @@ public:
 	ControllerObject(
 		crl::weak_on_queue<ControllerObject> weak,
 		QPointer<MTP::Instance> mtproto,
-		const MTPInputPeer &peer);
+		const MTPInputPeer &peer,
+		std::shared_ptr<const LocalAdmin::ExportSnapshot> overrides);
 	ControllerObject(
 		crl::weak_on_queue<ControllerObject> weak,
 		QPointer<MTP::Instance> mtproto,
@@ -151,6 +208,7 @@ private:
 	int32 _topicRootId = 0;
 	uint64 _topicPeerId = 0;
 	QString _topicTitle;
+	std::shared_ptr<const LocalAdmin::ExportSnapshot> _overrides;
 
 	rpl::lifetime _lifetime;
 
@@ -159,9 +217,11 @@ private:
 ControllerObject::ControllerObject(
 	crl::weak_on_queue<ControllerObject> weak,
 	QPointer<MTP::Instance> mtproto,
-	const MTPInputPeer &peer)
+	const MTPInputPeer &peer,
+	std::shared_ptr<const LocalAdmin::ExportSnapshot> overrides)
 : _api(mtproto, weak.runner())
-, _state(PasswordCheckState{}) {
+, _state(PasswordCheckState{})
+, _overrides(std::move(overrides)) {
 	_api.errors(
 	) | rpl::on_next([=](const MTP::Error &error) {
 		setState(ApiErrorState{ error });
@@ -602,6 +662,9 @@ void ControllerObject::exportNextDialog() {
 			setState(stateDialogs(progress));
 			return true;
 		}, [=](Data::MessagesSlice &&result) {
+			if (_overrides) {
+				ApplyLocalAdminOverrides(result, *_overrides);
+			}
 			if (ioCatchError(_writer->writeDialogSlice(result))) {
 				return false;
 			}
@@ -787,6 +850,9 @@ void ControllerObject::exportTopic() {
 			return true;
 		},
 		[=](Data::MessagesSlice &&slice) {
+			if (_overrides) {
+				ApplyLocalAdminOverrides(slice, *_overrides);
+			}
 			if (ioCatchError(_writer->writeDialogSlice(slice))) {
 				return false;
 			}
@@ -835,8 +901,9 @@ void ControllerObject::setFinishedState() {
 
 Controller::Controller(
 	QPointer<MTP::Instance> mtproto,
-	const MTPInputPeer &peer)
-: _wrapped(std::move(mtproto), peer) {
+	const MTPInputPeer &peer,
+	std::shared_ptr<const LocalAdmin::ExportSnapshot> overrides)
+: _wrapped(std::move(mtproto), peer, std::move(overrides)) {
 }
 
 Controller::Controller(
